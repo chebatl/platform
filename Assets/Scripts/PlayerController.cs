@@ -10,6 +10,9 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private int jumpForce;
     [SerializeField] private bool onGround;
     [SerializeField] private bool doubleJump;
+    [SerializeField] private Transform attackArea;
+    [SerializeField] private float attackRadius;
+    [SerializeField] private bool isAttacking;
     // Start is called before the first frame update
     void Start()
     {
@@ -21,6 +24,7 @@ public class PlayerController : MonoBehaviour
     void Update()
     {
         Jump();
+        Attack();
     }
     
     private void FixedUpdate() {
@@ -32,15 +36,17 @@ public class PlayerController : MonoBehaviour
         _rigidbody.velocity = new Vector2(direction * speed, _rigidbody.velocity.y);
         if(direction < 0){
             transform.eulerAngles = new Vector3(0,180,0);
-            if(onGround)
+            if(onGround && !isAttacking){
                 _animator.SetInteger("Transition", 1);
+            }
         }
-        if(direction > 0 ){
+        if(direction > 0 && !isAttacking){
             transform.eulerAngles = new Vector3(0,0,0);
-            if(onGround)
+            if(onGround){
                 _animator.SetInteger("Transition", 1);
+            }
         }
-        if(direction == 0 && onGround){
+        if(direction == 0 && onGround && !isAttacking){
             _animator.SetInteger("Transition", 0);
         }
     }
@@ -57,6 +63,29 @@ public class PlayerController : MonoBehaviour
                 _animator.SetInteger("Transition", 2);
             }
         }
+    }
+
+    private void Attack(){
+
+        if(!isAttacking && Input.GetButtonDown("Fire1")){
+            isAttacking = true;
+            Collider2D hit = Physics2D.OverlapCircle(attackArea.position, attackRadius);
+            _animator.SetInteger("Transition", 3);
+            if(hit != null){
+                Debug.Log(hit.name);
+            }
+            StartCoroutine("OnAttack");
+        }
+    }
+
+    IEnumerator OnAttack(){
+        yield return new WaitForSeconds(0.33333f);
+        isAttacking = false;
+    }
+
+    private void OnDrawGizmos() {
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(attackArea.position, attackRadius);
     }
 
     private void OnCollisionEnter2D(Collision2D other) {
