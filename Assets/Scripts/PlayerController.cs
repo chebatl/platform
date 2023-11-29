@@ -6,6 +6,8 @@ public class PlayerController : MonoBehaviour
 {
     private Rigidbody2D _rigidbody;
     private Animator _animator;
+    [SerializeField] private int health;
+    [SerializeField] private int damage;
     [SerializeField] private int speed;
     [SerializeField] private int jumpForce;
     [SerializeField] private bool onGround;
@@ -13,6 +15,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private Transform attackArea;
     [SerializeField] private float attackRadius;
     [SerializeField] private bool isAttacking;
+    [SerializeField] private LayerMask enemyLayer;
     // Start is called before the first frame update
     void Start()
     {
@@ -69,12 +72,22 @@ public class PlayerController : MonoBehaviour
 
         if(!isAttacking && Input.GetButtonDown("Fire1")){
             isAttacking = true;
-            Collider2D hit = Physics2D.OverlapCircle(attackArea.position, attackRadius);
+            Collider2D hit = Physics2D.OverlapCircle(attackArea.position, attackRadius, enemyLayer);
             _animator.SetInteger("Transition", 3);
             if(hit != null){
-                Debug.Log(hit.name);
+                hit.GetComponent<Enemy>().TakeDamage(damage);
             }
             StartCoroutine("OnAttack");
+        }
+    }
+
+    private void TakeDamage(int value){
+        _animator.SetTrigger("Hit");
+        health -= value;
+        if(health <= 0){
+            Debug.Log("morreu");
+            _animator.SetTrigger("Dead");
+            // Destroy(gameObject, 1f);
         }
     }
 
@@ -83,15 +96,20 @@ public class PlayerController : MonoBehaviour
         isAttacking = false;
     }
 
-    private void OnDrawGizmos() {
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(attackArea.position, attackRadius);
-    }
-
     private void OnCollisionEnter2D(Collision2D other) {
         if(other.gameObject.layer == 3){
             onGround = true;
             doubleJump = true;
         }
+    }
+
+    private void OnTriggerEnter2D(Collider2D other) {
+        if(other.gameObject.layer == 7){
+            TakeDamage(other.GetComponent<Enemy>().damage);
+        }
+    }
+    private void OnDrawGizmosSelected() {
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(attackArea.position, attackRadius);
     }
 }
