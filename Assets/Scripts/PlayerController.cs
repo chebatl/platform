@@ -16,11 +16,15 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float attackRadius;
     [SerializeField] private bool isAttacking;
     [SerializeField] private LayerMask enemyLayer;
+    [SerializeField] private float recoveryTime;
+    private float recoveryTimeCount = 0;
+    public bool isDead {get; private set;}
     // Start is called before the first frame update
     void Start()
     {
         _rigidbody = GetComponent<Rigidbody2D>();
         _animator = GetComponentInChildren<Animator>();
+        isDead = false;
     }
 
     // Update is called once per frame
@@ -84,11 +88,6 @@ public class PlayerController : MonoBehaviour
     private void TakeDamage(int value){
         _animator.SetTrigger("Hit");
         health -= value;
-        if(health <= 0){
-            Debug.Log("morreu");
-            _animator.SetTrigger("Dead");
-            // Destroy(gameObject, 1f);
-        }
     }
 
     IEnumerator OnAttack(){
@@ -107,9 +106,23 @@ public class PlayerController : MonoBehaviour
         if(other.gameObject.layer == 7){
             TakeDamage(other.GetComponent<Enemy>().damage);
         }
+        if(other.CompareTag("Coin")){
+            GameManager.INSTANCE.GetCoin();
+            other.GetComponent<Animator>().SetTrigger("Collected");
+            Destroy(other.gameObject, 0.5f);
+        }
     }
     private void OnDrawGizmosSelected() {
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(attackArea.position, attackRadius);
+    }
+
+    public void EnemyHit(int value){
+        TakeDamage(value);
+        if(health <= 0 && !isDead){
+            isDead = true;
+            _animator.SetTrigger("Dead");
+            // Destroy(gameObject, 1f);
+        }
     }
 }
