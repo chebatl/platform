@@ -6,7 +6,6 @@ public class PlayerController : MonoBehaviour
 {
     private Rigidbody2D _rigidbody;
     private Animator _animator;
-    [SerializeField] private int health;
     [SerializeField] private int damage;
     [SerializeField] private int speed;
     [SerializeField] private int jumpForce;
@@ -19,11 +18,30 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float recoveryTime;
     private float recoveryTimeCount = 0;
     public bool isDead {get; private set;}
+
+    private PlayerAudio playerAudio;
+    private HealthBar heatlhBar;
+    private bool recovery;
+
+    private static PlayerController player;
+
+    private void Awake() {
+        if(player == null){
+            player = this;
+            DontDestroyOnLoad(this);
+        }else if(player != this){
+            Destroy(player.gameObject);
+            player = this;
+            DontDestroyOnLoad(this);
+        }
+    }
     // Start is called before the first frame update
     void Start()
     {
         _rigidbody = GetComponent<Rigidbody2D>();
         _animator = GetComponentInChildren<Animator>();
+        playerAudio = GetComponent<PlayerAudio>();
+        heatlhBar = GetComponent<HealthBar>();
         isDead = false;
     }
 
@@ -61,10 +79,12 @@ public class PlayerController : MonoBehaviour
     private void Jump(){
         if(Input.GetButtonDown("Jump")){
             if(onGround){
+            playerAudio.PlaySFX(playerAudio.jumpSound);
             _rigidbody.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
             onGround = false;
             _animator.SetInteger("Transition", 2);
             }else if(doubleJump){
+                playerAudio.PlaySFX(playerAudio.jumpSound);
                 doubleJump = false;
                 _rigidbody.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
                 _animator.SetInteger("Transition", 2);
@@ -76,6 +96,7 @@ public class PlayerController : MonoBehaviour
 
         if(!isAttacking && Input.GetButtonDown("Fire1")){
             isAttacking = true;
+            playerAudio.PlaySFX(playerAudio.attackSound);
             Collider2D hit = Physics2D.OverlapCircle(attackArea.position, attackRadius, enemyLayer);
             _animator.SetInteger("Transition", 3);
             if(hit != null){
@@ -85,9 +106,10 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    private void TakeDamage(int value){
+    private int TakeDamage(int value){
         _animator.SetTrigger("Hit");
-        health -= value;
+        heatlhBar.health -= value;
+        return heatlhBar.health;
     }
 
     IEnumerator OnAttack(){
@@ -104,9 +126,10 @@ public class PlayerController : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D other) {
         if(other.gameObject.layer == 7){
-            TakeDamage(other.GetComponent<Enemy>().damage);
+            EnemyHit(other.GetComponent<Enemy>().damage);
         }
         if(other.CompareTag("Coin")){
+            playerAudio.PlaySFX(playerAudio.coinSound);
             GameManager.INSTANCE.GetCoin();
             other.GetComponent<Animator>().SetTrigger("Collected");
             Destroy(other.gameObject, 0.5f);
@@ -118,11 +141,25 @@ public class PlayerController : MonoBehaviour
     }
 
     public void EnemyHit(int value){
-        TakeDamage(value);
-        if(health <= 0 && !isDead){
-            isDead = true;
-            _animator.SetTrigger("Dead");
-            // Destroy(gameObject, 1f);
+       
+
+        if(!recovery){
+            int life = TakeDamage(value);
+            if(life <= 0 && !isDead){
+                isDead = true;
+                recovery = true;
+                _animator.SetTrigger("Dead");
+                GameManager.INSTANCE.ShowGameOver();
+                // Destroy(gameObject, 1f);
+            }
+        }else{
+            StartCoroutine(Recovery());
         }
+    }
+
+    IEnumerator Recovery(){
+        recovery = true;
+        yield return new WaitForSeconds(3f);
+        recovery = false;
     }
 }
